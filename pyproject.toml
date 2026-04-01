@@ -1,0 +1,25 @@
+[project]
+name = "test2"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Undervodkaaa", email = "vladoc536481@gmail.com"}
+]
+requires-python = "^3.14"
+dependencies = [
+    "fastapi (>=0.135.2,<0.136.0)",
+    "uvicorn[standart] (>=0.42.0,<0.43.0)",
+    "pymorphy3 (>=2.0.6,<3.0.0)",
+    "pymorphy3-dicts-ru (>=2.4.417150.4580142,<3.0.0.0)",
+    "openpyxl (>=3.1.5,<4.0.0)",
+    "python-multipart (>=0.0.22,<0.0.23)",
+    "aiofiles (>=25.1.0,<26.0.0)",
+    "mawo-pymorphy3 (>=1.0.4,<2.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
