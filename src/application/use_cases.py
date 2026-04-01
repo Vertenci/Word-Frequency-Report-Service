@@ -3,7 +3,6 @@ import tempfile
 import os
 import time
 import logging
-from typing import Dict, List, Tuple
 from src.domain.entities import WordStats
 from src.domain.interfaces import Lemmatizer, FileProcessor, ReportRepository
 from src.application.services import LemmatizerService
@@ -45,7 +44,7 @@ class GenerateReportUseCase:
             )
             logger.info(f"Файл сохранен. Размер: {file_size / (1024 ** 2):.2f} МБ")
 
-            lines_batch: List[Tuple[int, str]] = []
+            lines_batch: list[tuple[int, str]] = []
             batches = []
             total_lines = 0
 
@@ -82,7 +81,7 @@ class GenerateReportUseCase:
             batch_results = await asyncio.gather(*tasks)
 
             logger.info("Объединяем результаты обработки")
-            stats: Dict[str, WordStats] = {}
+            stats: dict[str, WordStats] = {}
 
             for batch_stat in batch_results:
                 for lemma, word_stat in batch_stat.items():
