@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List, Tuple
 from src.domain.entities import WordStats
 from src.domain.interfaces import Lemmatizer
 
@@ -8,8 +7,8 @@ class LemmatizerService:
     def __init__(self, lemmatizer: Lemmatizer):
         self.lemmatizer = lemmatizer
 
-    def process_line_batch(self, lines: List[Tuple[int, str]]) -> Dict[str, WordStats]:
-        local_stats: Dict[str, WordStats] = {}
+    def process_line_batch(self, lines: list[tuple[int, str]]) -> dict[str, WordStats]:
+        local_stats: dict[str, WordStats] = {}
 
         for line_num, line in lines:
             words = self._split_words(line)
@@ -32,6 +31,6 @@ class LemmatizerService:
 
         return local_stats
 
-    def _split_words(self, line: str) -> List[str]:
+    def _split_words(self, line: str) -> list[str]:
         words = re.findall(r'[а-яА-ЯёЁa-zA-Z]+', line)
         return words

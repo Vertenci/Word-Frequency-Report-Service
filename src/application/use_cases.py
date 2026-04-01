@@ -6,6 +6,7 @@ import logging
 from src.domain.entities import WordStats
 from src.domain.interfaces import Lemmatizer, FileProcessor, ReportRepository
 from src.application.services import LemmatizerService
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +125,9 @@ class GenerateReportUseCase:
             logger.error(f"Ошибка обработки файла: {e}", exc_info=True)
             raise
         finally:
-            if temp_file_path and os.path.exists(temp_file_path):
+            if temp_file_path:
                 try:
-                    os.unlink(temp_file_path)
+                    Path(temp_file_path).unlink(missing_ok=True)
                     logger.debug(f"Временный файл удален: {temp_file_path}")
                 except Exception as e:
                     logger.error(f"Не удалось удалить временный файл: {e}")
