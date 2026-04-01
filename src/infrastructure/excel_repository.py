@@ -8,8 +8,14 @@ class ExcelReportRepository(ReportRepository):
     async def save_report(self, stats: dict, filename: str, total_lines: int) -> str:
         os.makedirs("result", exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = "".join(c for c in filename if c.isalnum() or c in '._-')[:50]
+        base_name = os.path.splitext(filename)[0]
+        safe_name = "".join(c for c in base_name if c.isalnum() or c in '._-')
+
+        if len(safe_name) > 50:
+            safe_name = safe_name[:50]
+
+        timestamp = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
+
         output_path = f"result/report_{safe_name}_{timestamp}.xlsx"
 
         wb = Workbook()
@@ -18,7 +24,12 @@ class ExcelReportRepository(ReportRepository):
 
         ws.append(["Словоформа", "Кол-во во всём документе", "Кол-во в каждой строке"])
 
-        for word_stat in stats.values():
+        sorted_stats = sorted(stats.items(), key=lambda x: x[0])
+
+        for lemma, word_stat in sorted_stats:
+            while len(word_stat.line_counts) < total_lines:
+                word_stat.line_counts.append(0)
+
             ws.append(word_stat.to_excel_row())
 
         ws.column_dimensions['A'].width = 20

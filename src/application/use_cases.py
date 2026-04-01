@@ -3,7 +3,7 @@ import tempfile
 import os
 import time
 import logging
-from typing import Dict
+from typing import Dict, List, Tuple
 from src.domain.entities import WordStats
 from src.domain.interfaces import Lemmatizer, FileProcessor, ReportRepository
 from src.application.services import LemmatizerService
@@ -17,13 +17,17 @@ class GenerateReportUseCase:
             lemmatizer: Lemmatizer,
             file_processor: FileProcessor,
             report_repository: ReportRepository,
-            max_file_size_bytes: int = 3 * 1024 * 1024 * 1024
+            max_file_size_bytes: int = 3 * 1024 * 1024 * 1024,
+            batch_size: int = 1000,
+            max_workers: int = 4
     ):
         self.lemmatizer = lemmatizer
         self.file_processor = file_processor
         self.report_repository = report_repository
         self.lemmatizer_service = LemmatizerService(lemmatizer)
         self.max_file_size_bytes = max_file_size_bytes
+        self.batch_size = batch_size
+        self.max_workers = max_workers
 
     async def execute(self, upload_file, original_filename: str) -> str:
         start_time = time.perf_counter()
@@ -41,20 +45,60 @@ class GenerateReportUseCase:
             )
             logger.info(f"Файл сохранен. Размер: {file_size / (1024 ** 2):.2f} МБ")
 
-            stats: Dict[str, WordStats] = {}
+            lines_batch: List[Tuple[int, str]] = []
+            batches = []
             total_lines = 0
 
-            async def process_line(line_num: int, line: str):
-                nonlocal total_lines
+            async def collect_lines(line_num: int, line: str):
+                nonlocal total_lines, lines_batch, batches
                 total_lines = line_num + 1
-                await asyncio.to_thread(
-                    self.lemmatizer_service.process_line,
-                    line, line_num, stats
-                )
+                lines_batch.append((line_num, line))
+
+                if len(lines_batch) >= self.batch_size:
+                    batches.append(lines_batch.copy())
+                    lines_batch.clear()
+
+            logger.info("Начинаем сбор строк в пакеты")
+            await self.file_processor.process_line_by_line(temp_file_path, collect_lines)
+
+            if lines_batch:
+                batches.append(lines_batch)
+
+            logger.info(f"Собрано {len(batches)} пакетов, всего строк: {total_lines}")
 
             logger.info("Начинаем лемматизацию и подсчет статистики")
             process_start = time.perf_counter()
-            await self.file_processor.process_line_by_line(temp_file_path, process_line)
+
+            semaphore = asyncio.Semaphore(self.max_workers)
+
+            async def process_batch_with_semaphore(batch):
+                async with semaphore:
+                    return await asyncio.to_thread(
+                        self.lemmatizer_service.process_line_batch,
+                        batch
+                    )
+
+            tasks = [process_batch_with_semaphore(batch) for batch in batches]
+            batch_results = await asyncio.gather(*tasks)
+
+            logger.info("Объединяем результаты обработки")
+            stats: Dict[str, WordStats] = {}
+
+            for batch_stat in batch_results:
+                for lemma, word_stat in batch_stat.items():
+                    if lemma not in stats:
+                        stats[lemma] = WordStats(word=lemma)
+
+                    main_stat = stats[lemma]
+                    main_stat.total_count += word_stat.total_count
+
+                    max_len = max(len(main_stat.line_counts), len(word_stat.line_counts))
+                    while len(main_stat.line_counts) < max_len:
+                        main_stat.line_counts.append(0)
+
+                    for i, count in enumerate(word_stat.line_counts):
+                        main_stat.line_counts[i] += count
+
             process_time = time.perf_counter() - process_start
 
             logger.info(
@@ -66,7 +110,7 @@ class GenerateReportUseCase:
             )
 
             result_path = await self.report_repository.save_report(
-                stats, original_filename, len(stats)
+                stats, original_filename, total_lines
             )
 
             total_time = time.perf_counter() - start_time

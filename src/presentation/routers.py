@@ -29,7 +29,9 @@ def get_report_use_case(config: AppConfig = Depends(get_config)) -> GenerateRepo
         lemmatizer,
         file_processor,
         report_repository,
-        max_file_size_bytes=config.max_file_size_bytes
+        max_file_size_bytes=config.max_file_size_bytes,
+        batch_size=config.batch_size,
+        max_workers=config.max_workers
     )
 
 
@@ -38,7 +40,7 @@ async def export_report(
     file: UploadFile = File(...),
     use_case: GenerateReportUseCase = Depends(get_report_use_case)
 ):
-    if not any(file.filename.endswith(ext) for ext in get_config().allowed_extensions):
+    if not any(file.filename.lower().endswith(ext) for ext in get_config().allowed_extensions):
         raise HTTPException(
             status_code=400,
             detail=f"Только текстовые файлы: {', '.join(get_config().allowed_extensions)}"

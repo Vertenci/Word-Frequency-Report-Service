@@ -1,4 +1,5 @@
 import re
+from typing import Dict, List, Tuple
 from src.domain.entities import WordStats
 from src.domain.interfaces import Lemmatizer
 
@@ -7,27 +8,30 @@ class LemmatizerService:
     def __init__(self, lemmatizer: Lemmatizer):
         self.lemmatizer = lemmatizer
 
-    def process_line(self, line: str, line_num: int, stats: dict[str, WordStats]) -> None:
-        words = self._split_words(line)
+    def process_line_batch(self, lines: List[Tuple[int, str]]) -> Dict[str, WordStats]:
+        local_stats: Dict[str, WordStats] = {}
 
-        for word in words:
-            if not word:
-                continue
+        for line_num, line in lines:
+            words = self._split_words(line)
 
-            lemma = self.lemmatizer.lemmatize(word)
+            for word in words:
+                if not word:
+                    continue
 
-            if lemma not in stats:
-                stats[lemma] = WordStats(word=lemma, line_counts=[0] * (line_num + 1))
+                lemma = self.lemmatizer.lemmatize(word.lower())
 
-            word_stat = stats[lemma]
+                if lemma not in local_stats:
+                    local_stats[lemma] = WordStats(word=lemma)
 
-            word_stat.total_count += 1
+                word_stat = local_stats[lemma]
+                word_stat.total_count += 1
 
-            while len(word_stat.line_counts) <= line_num:
-                word_stat.line_counts.append(0)
+                while len(word_stat.line_counts) <= line_num:
+                    word_stat.line_counts.append(0)
+                word_stat.line_counts[line_num] += 1
 
-            word_stat.line_counts[line_num] += 1
+        return local_stats
 
-    def _split_words(self, line: str) -> list[str]:
+    def _split_words(self, line: str) -> List[str]:
         words = re.findall(r'[а-яА-ЯёЁa-zA-Z]+', line)
         return words
