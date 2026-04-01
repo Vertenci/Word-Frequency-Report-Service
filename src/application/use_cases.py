@@ -1,6 +1,5 @@
 import asyncio
 import tempfile
-import os
 import time
 import logging
 from src.domain.entities import WordStats
