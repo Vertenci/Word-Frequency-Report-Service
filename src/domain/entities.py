@@ -11,10 +11,3 @@ class WordStats:
     def to_excel_row(self) -> tuple:
         counts_str = ','.join(str(c) for c in self.line_counts)
         return (self.word, self.total_count, counts_str)
-
-
-@dataclass
-class ProcessingResult:
-    filename: str
-    stats: dict[str, WordStats]
-    total_lines: int
